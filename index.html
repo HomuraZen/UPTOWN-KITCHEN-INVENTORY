@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A'REST Kitchen Inventory</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #1a1a1a; color: #f0f0f0; padding: 1rem; }
+    h2 { font-size: 17px; font-weight: 600; margin-bottom: 2px; }
+    .sub { font-size: 12px; color: #aaa; margin-bottom: 1.25rem; }
+    .cat-label { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px; }
+    .card { border: 1px solid #444; border-radius: 10px; overflow: hidden; margin-bottom: 1.25rem; }
+    .row { display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid #444; background: #2e2e2e; gap: 10px; }
+    .row:last-child { border-bottom: none; }
+    .no-photo { width: 54px; height: 54px; border-radius: 6px; flex-shrink: 0; background: #3a3a3a; border: 1px dashed #555; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666; text-align: center; line-height: 1.3; }
+    .row span { flex: 1; font-size: 13px; color: #f0f0f0; }
+    input[type="number"] { width: 60px; padding: 5px 6px; font-size: 13px; border: 1px solid #444; border-radius: 8px; background: #252525; color: #f0f0f0; text-align: center; outline: none; }
+    input[type="text"] { width: 100%; padding: 8px 10px; font-size: 14px; border: 1px solid #444; border-radius: 8px; background: #252525; color: #f0f0f0; outline: none; }
+    .datetime-box { padding: 8px 10px; font-size: 13px; border: 1px solid #444; border-radius: 8px; color: #777; background: #252525; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
+    label { font-size: 12px; color: #aaa; display: block; margin-bottom: 4px; }
+    .submit-btn { width: 100%; padding: 11px; font-size: 14px; font-weight: 500; border: 1px solid #7b8cde; border-radius: 8px; background: #1e2340; color: #7b8cde; cursor: pointer; margin-top: 0.5rem; }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .success { text-align: center; padding: 3rem 1rem; }
+    .success .tick { font-size: 36px; color: #4caf7d; margin-bottom: 12px; }
+    .success p { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .success small { font-size: 13px; color: #aaa; display: block; margin-bottom: 1.5rem; }
+    .again-btn { padding: 8px 20px; font-size: 13px; border: 1px solid #444; border-radius: 8px; background: #2e2e2e; color: #f0f0f0; cursor: pointer; }
+    .error-msg { font-size: 13px; color: #ff6b6b; background: #3d1a1a; border: 1px solid #7a2a2a; border-radius: 8px; padding: 8px 12px; margin-bottom: 1rem; }
+    .qty-label { font-size: 10px; color: #777; text-align: center; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+
+  <h2>A'REST Damansara Uptown</h2>
+  <p class="sub">Kitchen inventory checklist</p>
+
+  <div id="form-view">
+    <div class="grid2">
+      <div>
+        <label>Staff name</label>
+        <input type="text" id="staffName" placeholder="Your name" />
+      </div>
+      <div>
+        <label>Date & time</label>
+        <div class="datetime-box" id="datetimeDisplay"></div>
+      </div>
+    </div>
+    <div id="error-msg" class="error-msg" style="display:none;"></div>
+    <div id="items-container"></div>
+    <button class="submit-btn" id="submitBtn" onclick="handleSubmit()">Submit inventory</button>
+  </div>
+
+  <div id="success-view" class="success" style="display:none;">
+    <div class="tick">✓</div>
+    <p>Inventory submitted!</p>
+    <small>Data saved to Google Sheets.</small>
+    <button class="again-btn" onclick="resetForm()">Submit another</button>
+  </div>
+
+  <script>
+    // ── PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE ──
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbybmoO6K8OB6-tsGXYXLoTEUmG5C7nkf4aTLgySvto95aYLi7H5X33dKn7uPpCzb6Pk/exec";
+
+    const ITEMS = [
+      { cat: "Plates & Trays", name: "Donburi Metal Tray" },
+      { cat: "Plates & Trays", name: "Aglio Olio Plate (Grey)" },
+      { cat: "Plates & Trays", name: "Carbonara Plate (Cream)" },
+      { cat: "Plates & Trays", name: "Salmon/Chicken Plate" },
+      { cat: "Plates & Trays", name: "Onsen Egg Plate" },
+      { cat: "Plates & Trays", name: "Mushroom Plate" },
+      { cat: "Plates & Trays", name: "Fish N Chip Plate" },
+      { cat: "Plates & Trays", name: "Sauce Plate" },
+      { cat: "Plates & Trays", name: "Pizza Tray" },
+      { cat: "Plates & Trays", name: "Kid Plate" },
+      { cat: "Plates & Trays", name: "Sharing Plate" },
+      { cat: "Plates & Trays", name: "Handmade Noodle Plate" },
+      { cat: "Plates & Trays", name: "French Fries Plate (New)" },
+      { cat: "Plates & Trays", name: "Chicken Wings Plate (New)" },
+      { cat: "Plates & Trays", name: "Ramen Plate" },
+      { cat: "Plates & Trays", name: "Wooden Tray" },
+      { cat: "Bowls", name: "Don Bowl Black" },
+      { cat: "Bowls", name: "Don Bowl (Furikake) White" },
+      { cat: "Bowls", name: "Chazuke Rice Bowl" },
+      { cat: "Bowls", name: "Add Rice Bowl" },
+      { cat: "Bowls", name: "Small Don Bowl" },
+      { cat: "Bowls", name: "Big Don Bowl" },
+      { cat: "Bowls", name: "Kid Bowl" },
+      { cat: "Teapots", name: "Chazuke Soup Teapot (Old)" },
+      { cat: "Teapots", name: "Chazuke Soup Teapot (New)" },
+    ];
+
+    const cats = [...new Set(ITEMS.map(i => i.cat))];
+
+    function fmt(dt) {
+      return new Date(dt).toLocaleString("en-MY", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+    }
+
+    function getInitials(name) {
+      return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+    }
+
+    function buildForm() {
+      document.getElementById("datetimeDisplay").textContent = fmt(new Date());
+      const container = document.getElementById("items-container");
+      container.innerHTML = "";
+      cats.forEach(cat => {
+        const lbl = document.createElement("p");
+        lbl.className = "cat-label";
+        lbl.textContent = cat;
+        container.appendChild(lbl);
+        const card = document.createElement("div");
+        card.className = "card";
+        ITEMS.filter(i => i.cat === cat).forEach(item => {
+          const row = document.createElement("div");
+          row.className = "row";
+          row.innerHTML = `
+            <div class="no-photo">${getInitials(item.name)}</div>
+            <span>${item.name}</span>
+            <div>
+              <div class="qty-label">Qty</div>
+              <input type="number" min="0" placeholder="0" id="item_${item.name.replace(/[\s/()]/g,'_')}" />
+            </div>`;
+          card.appendChild(row);
+        });
+        container.appendChild(card);
+      });
+    }
+
+    async function handleSubmit() {
+      const staffName = document.getElementById("staffName").value.trim();
+      const errEl = document.getElementById("error-msg");
+      errEl.style.display = "none";
+      if (!staffName) { errEl.textContent = "Please enter your name."; errEl.style.display = "block"; return; }
+      const counts = {};
+      let allFilled = true;
+      ITEMS.forEach(item => {
+        const id = "item_" + item.name.replace(/[\s/()]/g,'_');
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.value === "") allFilled = false;
+        counts[item.name] = el.value;
+      });
+      if (!allFilled) { errEl.textContent = "Please fill in all item quantities."; errEl.style.display = "block"; return; }
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true; btn.textContent = "Submitting…";
+      const payload = { staff: staffName, datetime: new Date().toISOString(), counts };
+      try {
+        await fetch(SCRIPT_URL, { method:"POST", mode:"no-cors", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+        document.getElementById("form-view").style.display = "none";
+        document.getElementById("success-view").style.display = "block";
+      } catch(e) {
+        errEl.textContent = "Submission failed. Please check your connection.";
+        errEl.style.display = "block";
+        btn.disabled = false; btn.textContent = "Submit inventory";
+      }
+    }
+
+    function resetForm() {
+      document.getElementById("staffName").value = "";
+      buildForm();
+      document.getElementById("success-view").style.display = "none";
+      document.getElementById("form-view").style.display = "block";
+    }
+
+    buildForm();
+  </script>
+</body>
+</html>
